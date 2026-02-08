@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:market_research/src/features/dashboard/dashboard_controller.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -15,6 +16,15 @@ class DashboardScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Market Dashboard'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.system_update),
+            onPressed: () {
+              final uri = Uri.parse(
+                  'https://drive.google.com/drive/u/0/folders/1D73wSqObmfyd71zSRgf53_B_GyCuTHzY');
+              launchUrl(uri, mode: LaunchMode.externalApplication);
+            },
+            tooltip: 'Update',
+          ),
           IconButton(
             icon: const Icon(Icons.history),
             onPressed: () => context.push('/backtest'),
