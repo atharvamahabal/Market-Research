@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:market_research/src/features/auth/login_screen.dart';
 import 'package:market_research/src/features/dashboard/dashboard_screen.dart';
+import 'package:market_research/src/features/dashboard/market_table_screen.dart';
 import 'package:market_research/src/features/portfolio/portfolio_screen.dart';
 import 'package:market_research/src/features/trading/trading_screen.dart';
 import 'package:market_research/src/features/strategy/strategy_screen.dart';
@@ -43,6 +44,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/dashboard',
         builder: (context, state) => const DashboardScreen(),
+      ),
+      GoRoute(
+        path: '/market-table',
+        builder: (context, state) => const MarketTableScreen(),
       ),
       GoRoute(
         path: '/portfolio',

@@ -17,13 +17,19 @@ class DashboardScreen extends ConsumerWidget {
         title: const Text('Market Dashboard'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.system_update),
+            icon: const Icon(Icons.search),
             onPressed: () {
-              final uri = Uri.parse(
-                  'https://drive.google.com/drive/u/0/folders/1D73wSqObmfyd71zSRgf53_B_GyCuTHzY');
-              launchUrl(uri, mode: LaunchMode.externalApplication);
+              showSearch(
+                context: context,
+                delegate: StockSearchDelegate(ref),
+              );
             },
-            tooltip: 'Update',
+            tooltip: 'Search Stocks',
+          ),
+          IconButton(
+            icon: const Icon(Icons.table_chart),
+            onPressed: () => context.push('/market-table'),
+            tooltip: 'Tabular View',
           ),
           IconButton(
             icon: const Icon(Icons.history),
@@ -123,31 +129,26 @@ class DashboardScreen extends ConsumerWidget {
   }
 
   Widget _buildMiniChart(dynamic chartData) {
-    if (chartData == null) return const SizedBox.shrink();
+    final result = chartData?.chart.result?.first;
+    if (result == null) return const Center(child: Text('No chart data'));
 
-    final quotes = chartData.chart.result?.first.indicators.quote.first;
-    final timestamps = chartData.chart.result?.first.timestamp;
+    final quotes = result.indicators.quote.first.close;
+    if (quotes == null || quotes.isEmpty)
+      return const Center(child: Text('No quotes'));
 
-    if (quotes == null ||
-        timestamps == null ||
-        quotes.close == null ||
-        quotes.close!.isEmpty) {
-      return const Center(child: Text('No chart data'));
-    }
-
-    // Filter out null values and create spots
     final spots = <FlSpot>[];
-    for (int i = 0; i < quotes.close!.length; i++) {
-      if (quotes.close![i] != null) {
-        // Use index as X for simplicity in mini chart, or timestamp if needed
-        spots.add(FlSpot(i.toDouble(), quotes.close![i]!));
+    for (int i = 0; i < quotes.length; i++) {
+      if (quotes[i] != null) {
+        spots.add(FlSpot(i.toDouble(), quotes[i]!));
       }
     }
 
-    if (spots.isEmpty) return const Center(child: Text('No chart data'));
+    if (spots.isEmpty) return const Center(child: Text('Empty data'));
 
-    final isPositive = (spots.last.y - spots.first.y) >= 0;
-    final lineColor = isPositive ? Colors.green : Colors.red;
+    // Determine color based on performance
+    final startPrice = spots.first.y;
+    final endPrice = spots.last.y;
+    final color = endPrice >= startPrice ? Colors.green : Colors.red;
 
     return LineChart(
       LineChartData(
@@ -158,18 +159,71 @@ class DashboardScreen extends ConsumerWidget {
           LineChartBarData(
             spots: spots,
             isCurved: true,
-            color: lineColor,
+            color: color,
             barWidth: 2,
             isStrokeCapRound: true,
             dotData: const FlDotData(show: false),
             belowBarData: BarAreaData(
               show: true,
-              color: lineColor.withOpacity(0.1),
+              color: color.withOpacity(0.1),
             ),
           ),
         ],
-        lineTouchData: const LineTouchData(enabled: false),
       ),
     );
+  }
+}
+
+class StockSearchDelegate extends SearchDelegate {
+  final WidgetRef ref;
+  StockSearchDelegate(this.ref);
+
+  @override
+  List<Widget>? buildActions(BuildContext context) {
+    return [
+      IconButton(
+        icon: const Icon(Icons.clear),
+        onPressed: () => query = '',
+      ),
+    ];
+  }
+
+  @override
+  Widget? buildLeading(BuildContext context) {
+    return IconButton(
+      icon: const Icon(Icons.arrow_back),
+      onPressed: () => close(context, null),
+    );
+  }
+
+  @override
+  Widget buildResults(BuildContext context) {
+    if (query.trim().isEmpty) return const SizedBox();
+    
+    // For NSE stocks, common practice is to append .NS
+    final nseSymbol = query.toUpperCase().contains('.') ? query.toUpperCase() : '${query.toUpperCase()}.NS';
+
+    return ListTile(
+      title: Text('Add "$nseSymbol" to Watchlist?'),
+      subtitle: const Text('Searching on Yahoo Finance...'),
+      leading: const Icon(Icons.add_chart),
+      onTap: () async {
+        await ref.read(dashboardControllerProvider.notifier).addToWatchlist(nseSymbol);
+        if (context.mounted) {
+          close(context, null);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Added $nseSymbol to watchlist')),
+          );
+        }
+      },
+    );
+  }
+
+  @override
+  Widget buildSuggestions(BuildContext context) {
+    if (query.isEmpty) {
+      return const Center(child: Text('Enter symbol (e.g. RELIANCE, TCS, ^NSEI)'));
+    }
+    return buildResults(context);
   }
 }

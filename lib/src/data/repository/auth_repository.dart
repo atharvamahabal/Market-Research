@@ -14,25 +14,15 @@ class AuthRepository {
   late final GoogleSignIn _googleSignIn;
 
   AuthRepository() {
-    if (Platform.isAndroid || Platform.isIOS) {
-      _googleSignIn = GoogleSignIn(
-        serverClientId:
-            '1082989712826-jjqgfusvgj66sh73t8f23d2h58rn05r1.apps.googleusercontent.com',
-        scopes: [
-          'email',
-          'https://www.googleapis.com/auth/userinfo.profile',
-        ],
-      );
-    } else {
-      _googleSignIn = GoogleSignIn(
-        clientId:
-            '1082989712826-29qkuks0q3n7dhhec7dq1udl06h44pv5.apps.googleusercontent.com',
-        scopes: [
-          'email',
-          'https://www.googleapis.com/auth/userinfo.profile',
-        ],
-      );
-    }
+    // On Android, GoogleSignIn usually works without explicit client IDs 
+    // if the google-services.json is correctly configured in the android/app folder.
+    // Hardcoding client IDs from different projects will cause PlatformException.
+    _googleSignIn = GoogleSignIn(
+      scopes: [
+        'email',
+        'https://www.googleapis.com/auth/userinfo.profile',
+      ],
+    );
   }
 
   Future<GoogleSignInAccount?> signInWithGoogle() async {

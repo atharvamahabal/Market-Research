@@ -1,29 +1,47 @@
-{ 
-  "project_info": { 
-    "project_number": "1026058589110", 
-    "project_id": "market-research-24aa6", 
-    "storage_bucket": "market-research-24aa6.firebasestorage.app" 
-  }, 
-  "client": [ 
-    { 
-      "client_info": { 
-        "mobilesdk_app_id": "1:1026058589110:android:5cb07303face47620fa717", 
-        "android_client_info": { 
-          "package_name": "com.marketresearch.market_research" 
-        } 
-      }, 
-      "oauth_client": [], 
-      "api_key": [ 
-        { 
-          "current_key": "AIzaSyB3CfM9948zGshsR1KmSAcb-2Ub2WOIr-8" 
-        } 
-      ], 
-      "services": { 
-        "appinvite_service": { 
-          "other_platform_oauth_client": [] 
-        } 
-      } 
-    } 
-  ], 
-  "configuration_version": "1" 
+{
+  "project_info": {
+    "project_number": "1026058589110",
+    "project_id": "market-research-24aa6",
+    "storage_bucket": "market-research-24aa6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1026058589110:android:5cb07303face47620fa717",
+        "android_client_info": {
+          "package_name": "com.marketresearch.market_research"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1026058589110-ib3ivt9lv90aaovqu8cn1q0nmbboqoan.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.marketresearch.market_research",
+            "certificate_hash": "27ed8de487613ac494196533b97828b9bb9d3c7a"
+          }
+        },
+        {
+          "client_id": "1026058589110-puagfj0p98advnoadtfbmt0enjm4ec3v.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB3CfM9948zGshsR1KmSAcb-2Ub2WOIr-8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1026058589110-puagfj0p98advnoadtfbmt0enjm4ec3v.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
 }

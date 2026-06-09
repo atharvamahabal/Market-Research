@@ -27,7 +27,7 @@ class DatabaseHelper {
     String path = join(await getDatabasesPath(), 'market_research.db');
     return await openDatabase(
       path,
-      version: 3, // Increment version for schema changes
+      version: 4, // Increment version for schema changes
       onUpgrade: _onUpgrade,
       onCreate: _onCreate,
     );
@@ -121,6 +121,22 @@ class DatabaseHelper {
       )
     ''');
 
+    await db.execute('''
+      CREATE TABLE watchlist (
+        symbol TEXT PRIMARY KEY,
+        added_at INTEGER
+      )
+    ''');
+
+    // Seed initial watchlist
+    final initialWatchlist = ['^NSEI', '^NSEBANK', 'RELIANCE.NS', 'TCS.NS', 'INFY.NS'];
+    for (final symbol in initialWatchlist) {
+      await db.insert('watchlist', {
+        'symbol': symbol,
+        'added_at': DateTime.now().millisecondsSinceEpoch,
+      });
+    }
+
     // Seed a default user for paper trading
     await db.insert('users', {
       'id': 'default_user',
@@ -175,6 +191,22 @@ class DatabaseHelper {
           FOREIGN KEY (strategy_id) REFERENCES strategies(id)
         )
       ''');
+    }
+    if (oldVersion < 4) {
+      await db.execute('''
+        CREATE TABLE watchlist (
+          symbol TEXT PRIMARY KEY,
+          added_at INTEGER
+        )
+      ''');
+      // Seed initial watchlist
+      final initialWatchlist = ['^NSEI', '^NSEBANK', 'RELIANCE.NS', 'TCS.NS', 'INFY.NS'];
+      for (final symbol in initialWatchlist) {
+        await db.insert('watchlist', {
+          'symbol': symbol,
+          'added_at': DateTime.now().millisecondsSinceEpoch,
+        });
+      }
     }
   }
 
@@ -316,6 +348,34 @@ class DatabaseHelper {
       where: 'strategy_id = ?',
       whereArgs: [strategyId],
       orderBy: 'tested_at DESC',
+    );
+  }
+
+  // Watchlist Methods
+  Future<List<String>> getWatchlist() async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query('watchlist', orderBy: 'added_at ASC');
+    return List.generate(maps.length, (i) => maps[i]['symbol'] as String);
+  }
+
+  Future<void> addToWatchlist(String symbol) async {
+    final db = await database;
+    await db.insert(
+      'watchlist',
+      {
+        'symbol': symbol.toUpperCase(),
+        'added_at': DateTime.now().millisecondsSinceEpoch,
+      },
+      conflictAlgorithm: ConflictAlgorithm.ignore,
+    );
+  }
+
+  Future<void> removeFromWatchlist(String symbol) async {
+    final db = await database;
+    await db.delete(
+      'watchlist',
+      where: 'symbol = ?',
+      whereArgs: [symbol],
     );
   }
 }

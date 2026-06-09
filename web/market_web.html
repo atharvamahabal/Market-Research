@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Market Research - Web Portal</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+
+    <style>
+        body { background-color: #f8f9fa; }
+        .card { margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .price-up { color: #198754; font-weight: bold; }
+        .price-down { color: #dc3545; font-weight: bold; }
+        #auth-container { text-align: center; padding: 50px; }
+        #app-content { display: none; }
+        .navbar-brand { font-weight: bold; color: #6f42c1 !important; }
+    </style>
+</head>
+<body>
+
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#">Market Research Web</a>
+            <div class="d-flex">
+                <span id="user-email" class="navbar-text me-3 text-white"></span>
+                <button id="logout-btn" class="btn btn-outline-light btn-sm">Logout</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Auth Section -->
+    <div id="auth-container" class="container">
+        <div class="card p-5 mx-auto" style="max-width: 400px;">
+            <h3>Welcome</h3>
+            <p>Please sign in to access market data</p>
+            <button id="login-btn" class="btn btn-primary">Sign in with Google</button>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div id="app-content" class="container mt-4">
+        <div class="row">
+            <!-- Sidebar / Watchlist -->
+            <div class="col-md-4">
+                <div class="card p-3">
+                    <h5>Search & Add</h5>
+                    <div class="input-group mb-3">
+                        <input type="text" id="search-input" class="form-control" placeholder="Symbol (e.g. RELIANCE.NS)">
+                        <button class="btn btn-primary" id="add-btn">Add</button>
+                    </div>
+                    <hr>
+                    <h5>Watchlist</h5>
+                    <div id="watchlist-items" class="list-group">
+                        <!-- Dynamic items -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard / Table -->
+            <div class="col-md-8">
+                <div class="card p-3">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5>Market Overview (Tabular)</h5>
+                        <span id="last-update" class="text-muted small"></span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Symbol</th>
+                                    <th>Price</th>
+                                    <th>Change</th>
+                                    <th>Chart</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="market-table-body">
+                                <!-- Dynamic rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Mini Chart View (Selected Stock) -->
+                <div id="chart-section" class="card p-3" style="display: none;">
+                    <h5 id="chart-title">Stock Analysis</h5>
+                    <canvas id="mainChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = { 
+            apiKey: "AIzaSyC98SFIkI1M2peLHyM_LYYQX6pc5eG8rOc", 
+            authDomain: "market-research-24aa6.firebaseapp.com", 
+            projectId: "market-research-24aa6", 
+            storageBucket: "market-research-24aa6.firebasestorage.app", 
+            messagingSenderId: "1026058589110", 
+            appId: "1:1026058589110:web:8659b279178ca3b50fa717"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const provider = new firebase.auth.GoogleAuthProvider();
+
+        // State
+        let watchlist = ['^NSEI', '^NSEBANK', 'RELIANCE.NS', 'TCS.NS'];
+        let stockData = {};
+        let myChart = null;
+
+        // UI Elements
+        const loginBtn = document.getElementById('login-btn');
+        const logoutBtn = document.getElementById('logout-btn');
+        const authContainer = document.getElementById('auth-container');
+        const appContent = document.getElementById('app-content');
+        const userEmail = document.getElementById('user-email');
+        const watchlistContainer = document.getElementById('watchlist-items');
+        const tableBody = document.getElementById('market-table-body');
+        const searchInput = document.getElementById('search-input');
+        const addBtn = document.getElementById('add-btn');
+
+        // Auth Logic
+        loginBtn.onclick = () => auth.signInWithPopup(provider);
+        logoutBtn.onclick = () => auth.signOut();
+
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                authContainer.style.display = 'none';
+                appContent.style.display = 'block';
+                userEmail.innerText = user.email;
+                refreshMarketData();
+                startTimer();
+            } else {
+                authContainer.style.display = 'block';
+                appContent.style.display = 'none';
+                userEmail.innerText = '';
+            }
+        });
+
+        // Data Fetching
+        async function fetchStock(symbol) {
+            try {
+                // Using a CORS proxy for demo purposes (Yahoo Finance blocks direct browser calls)
+                const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=15m&range=1d`;
+                const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
+                const json = await response.json();
+                return JSON.parse(json.contents);
+            } catch (e) {
+                console.error("Error fetching " + symbol, e);
+                return null;
+            }
+        }
+
+        async function refreshMarketData() {
+            console.log("Refreshing market data...");
+            for (const symbol of watchlist) {
+                const data = await fetchStock(symbol);
+                if (data && data.chart.result) {
+                    stockData[symbol] = data.chart.result[0];
+                }
+            }
+            updateUI();
+            document.getElementById('last-update').innerText = "Updated: " + new RegExp(/\d+:\d+:\d+/).exec(new Date())[0];
+        }
+
+        function updateUI() {
+            tableBody.innerHTML = '';
+            watchlistContainer.innerHTML = '';
+
+            watchlist.forEach(symbol => {
+                const data = stockData[symbol];
+                const meta = data?.meta;
+                const price = meta?.regularMarketPrice || 0;
+                const prevClose = meta?.chartPreviousClose || price;
+                const change = price - prevClose;
+                const changePercent = ((change / prevClose) * 100).toFixed(2);
+                const colorClass = change >= 0 ? 'price-up' : 'price-down';
+
+                // Add to Table
+                const row = `
+                    <tr>
+                        <td><strong>${symbol}</strong></td>
+                        <td>${price.toFixed(2)}</td>
+                        <td class="${colorClass}">${change >= 0 ? '+' : ''}${change.toFixed(2)} (${changePercent}%)</td>
+                        <td><button class="btn btn-sm btn-outline-primary" onclick="showChart('${symbol}')">View</button></td>
+                        <td><button class="btn btn-sm btn-outline-danger" onclick="removeStock('${symbol}')">×</button></td>
+                    </tr>
+                `;
+                tableBody.innerHTML += row;
+
+                // Add to Watchlist
+                const item = `<div class="list-group-item d-flex justify-content-between align-items-center">
+                    ${symbol}
+                    <span class="${colorClass}">${price.toFixed(2)}</span>
+                </div>`;
+                watchlistContainer.innerHTML += item;
+            });
+        }
+
+        function showChart(symbol) {
+            const data = stockData[symbol];
+            if (!data) return;
+
+            document.getElementById('chart-section').style.display = 'block';
+            document.getElementById('chart-title').innerText = symbol + " - Intraday Performance";
+
+            const quotes = data.indicators.quote[0].close;
+            const labels = data.timestamp.map(t => new Date(t * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}));
+
+            if (myChart) myChart.destroy();
+
+            const ctx = document.getElementById('mainChart').getContext('2d');
+            myChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Price',
+                        data: quotes,
+                        borderColor: quotes[quotes.length-1] >= quotes[0] ? '#198754' : '#dc3545',
+                        backgroundColor: 'rgba(0,0,0,0.05)',
+                        fill: true,
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: { x: { display: false } }
+                }
+            });
+        }
+
+        // Watchlist Actions
+        addBtn.onclick = () => {
+            const sym = searchInput.value.toUpperCase();
+            if (sym && !watchlist.includes(sym)) {
+                watchlist.push(sym);
+                searchInput.value = '';
+                refreshMarketData();
+            }
+        };
+
+        window.removeStock = (symbol) => {
+            watchlist = watchlist.filter(s => s !== symbol);
+            refreshMarketData();
+        };
+
+        // Auto-refresh timer (1 minute)
+        function startTimer() {
+            setInterval(refreshMarketData, 60000);
+        }
+
+    </script>
+</body>
+</html>

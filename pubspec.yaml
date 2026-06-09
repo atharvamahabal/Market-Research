@@ -26,6 +26,8 @@ dependencies:
   
   # Authentication
   google_sign_in: ^6.1.6
+  firebase_core: ^2.24.2
+  firebase_auth: ^4.15.3
   
   # Charts
   fl_chart: ^0.66.0

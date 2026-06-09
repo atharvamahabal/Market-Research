@@ -1,38 +1,303 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Market Research - Web Portal</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics-compat.js"></script>
 
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
-  <base href="$FLUTTER_BASE_HREF">
-
-  <meta charset="UTF-8">
-  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
-
-  <!-- iOS meta tags & icons -->
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="market_research">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png">
-
-  <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
-
-  <title>market_research</title>
-  <link rel="manifest" href="manifest.json">
+    <style>
+        body { background-color: #f8f9fa; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        .card { margin-bottom: 20px; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.08); border-radius: 12px; }
+        .price-up { color: #198754; font-weight: bold; }
+        .price-down { color: #dc3545; font-weight: bold; }
+        #auth-container { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+        #app-content { display: none; }
+        .navbar-brand { font-weight: bold; color: #6f42c1 !important; }
+        .btn-primary { background-color: #6f42c1; border-color: #6f42c1; }
+        .btn-primary:hover { background-color: #59359a; border-color: #59359a; }
+        .table th { border-top: none; color: #6c757d; font-size: 0.85rem; text-transform: uppercase; }
+        .watchlist-item { cursor: pointer; transition: background 0.2s; }
+        .watchlist-item:hover { background-color: #f1f3f5; }
+    </style>
 </head>
 <body>
-  <script src="flutter_bootstrap.js" async></script>
+
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#">Market Research</a>
+            <div class="d-flex align-items-center">
+                <span id="user-email" class="navbar-text me-3 text-white small"></span>
+                <button id="logout-btn" class="btn btn-outline-light btn-sm" style="display:none;">Logout</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Auth Section -->
+    <div id="auth-container" class="container">
+        <div class="card p-5 text-center" style="max-width: 400px;">
+            <div class="mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" fill="#6f42c1" class="bi bi-graph-up-arrow" viewBox="0 0 16 16">
+                    <path fill-rule="evenodd" d="M0 0h1v15h15v1H0V0Zm10 3.5a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0V4.9l-3.613 4.417a.5.5 0 0 1-.74.037L7.06 6.767l-3.656 5.027a.5.5 0 0 1-.808-.588l4-5.5a.5.5 0 0 1 .758-.06l2.609 2.61L13.445 4H10.5a.5.5 0 0 1-.5-.5Z"/>
+                </svg>
+            </div>
+            <h3>Market Research</h3>
+            <p class="text-muted">Analyze and Paper Trade Indian Markets</p>
+            <button id="login-btn" class="btn btn-primary w-100 py-2 mt-3">Sign in with Google</button>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div id="app-content" class="container mt-4">
+        <div class="row">
+            <!-- Sidebar / Watchlist -->
+            <div class="col-md-4">
+                <div class="card p-3">
+                    <h6 class="fw-bold mb-3">Add Stock</h6>
+                    <div class="input-group mb-3">
+                        <input type="text" id="search-input" class="form-control" placeholder="Symbol (e.g. RELIANCE)">
+                        <button class="btn btn-primary" id="add-btn">Add</button>
+                    </div>
+                    <hr>
+                    <h6 class="fw-bold mb-3">Watchlist</h6>
+                    <div id="watchlist-items" class="list-group list-group-flush">
+                        <!-- Dynamic items -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard / Table -->
+            <div class="col-md-8">
+                <div class="card p-3">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="fw-bold m-0">Market Overview (Live)</h6>
+                        <span id="last-update" class="text-muted" style="font-size: 0.75rem;"></span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Symbol</th>
+                                    <th>Price</th>
+                                    <th>Change</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="market-table-body">
+                                <!-- Dynamic rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Analysis Chart -->
+                <div id="chart-section" class="card p-4" style="display: none;">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 id="chart-title" class="fw-bold m-0">Stock Analysis</h6>
+                        <button class="btn-close" onclick="document.getElementById('chart-section').style.display='none'"></button>
+                    </div>
+                    <div style="height: 300px;">
+                        <canvas id="mainChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase Configuration (from your input)
+        const firebaseConfig = { 
+            apiKey: "AIzaSyC98SFIkI1M2peLHyM_LYYQX6pc5eG8rOc", 
+            authDomain: "market-research-24aa6.firebaseapp.com", 
+            projectId: "market-research-24aa6", 
+            storageBucket: "market-research-24aa6.firebasestorage.app", 
+            messagingSenderId: "1026058589110", 
+            appId: "1:1026058589110:web:8659b279178ca3b50fa717",
+            measurementId: "G-DZ1TJV9PY0"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const provider = new firebase.auth.GoogleAuthProvider();
+
+        // App State
+        let watchlist = ['^NSEI', '^NSEBANK', 'RELIANCE.NS', 'TCS.NS', 'INFY.NS'];
+        let stockData = {};
+        let myChart = null;
+
+        // UI Elements
+        const loginBtn = document.getElementById('login-btn');
+        const logoutBtn = document.getElementById('logout-btn');
+        const authContainer = document.getElementById('auth-container');
+        const appContent = document.getElementById('app-content');
+        const userEmail = document.getElementById('user-email');
+        const watchlistContainer = document.getElementById('watchlist-items');
+        const tableBody = document.getElementById('market-table-body');
+        const searchInput = document.getElementById('search-input');
+        const addBtn = document.getElementById('add-btn');
+
+        // Auth Event Listeners
+        loginBtn.onclick = () => auth.signInWithPopup(provider).catch(e => alert(e.message));
+        logoutBtn.onclick = () => auth.signOut();
+
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                authContainer.style.display = 'none';
+                appContent.style.display = 'block';
+                logoutBtn.style.display = 'block';
+                userEmail.innerText = user.email;
+                refreshMarketData();
+                setInterval(refreshMarketData, 60000); // 1-minute auto-refresh
+            } else {
+                authContainer.style.display = 'flex';
+                appContent.style.display = 'none';
+                logoutBtn.style.display = 'none';
+                userEmail.innerText = '';
+            }
+        });
+
+        // Yahoo Finance Data Fetching
+        async function fetchStock(symbol) {
+            try {
+                const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=15m&range=1d`;
+                // Using AllOrigins to bypass CORS on GitHub Pages
+                const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
+                const json = await response.json();
+                const data = JSON.parse(json.contents);
+                return data.chart.result ? data.chart.result[0] : null;
+            } catch (e) {
+                console.error("Fetch error for " + symbol, e);
+                return null;
+            }
+        }
+
+        async function refreshMarketData() {
+            console.log("Auto-refreshing...");
+            const fetches = watchlist.map(async symbol => {
+                const data = await fetchStock(symbol);
+                if (data) stockData[symbol] = data;
+            });
+            await Promise.all(fetches);
+            updateUI();
+            document.getElementById('last-update').innerText = "Last Updated: " + new Date().toLocaleTimeString();
+        }
+
+        function updateUI() {
+            tableBody.innerHTML = '';
+            watchlistContainer.innerHTML = '';
+
+            watchlist.forEach(symbol => {
+                const data = stockData[symbol];
+                const meta = data?.meta;
+                const price = meta?.regularMarketPrice || 0;
+                const prevClose = meta?.chartPreviousClose || price;
+                const change = price - prevClose;
+                const changePercent = prevClose !== 0 ? ((change / prevClose) * 100).toFixed(2) : "0.00";
+                const colorClass = change >= 0 ? 'price-up' : 'price-down';
+
+                // Update Table
+                const row = `
+                    <tr>
+                        <td><span class="fw-bold">${symbol}</span></td>
+                        <td>${price.toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
+                        <td class="${colorClass}">${change >= 0 ? '+' : ''}${change.toFixed(2)} (${changePercent}%)</td>
+                        <td>
+                            <button class="btn btn-sm btn-light me-1" onclick="showChart('${symbol}')">Chart</button>
+                            <button class="btn btn-sm btn-outline-danger border-0" onclick="removeStock('${symbol}')">×</button>
+                        </td>
+                    </tr>
+                `;
+                tableBody.innerHTML += row;
+
+                // Update Watchlist
+                const item = `
+                    <div class="list-group-item watchlist-item d-flex justify-content-between align-items-center px-0 border-0" onclick="showChart('${symbol}')">
+                        <span>${symbol}</span>
+                        <span class="${colorClass}">${price.toFixed(2)}</span>
+                    </div>
+                `;
+                watchlistContainer.innerHTML += item;
+            });
+        }
+
+        function showChart(symbol) {
+            const data = stockData[symbol];
+            if (!data || !data.timestamp) return;
+
+            document.getElementById('chart-section').style.display = 'block';
+            document.getElementById('chart-title').innerText = symbol + " - Intraday";
+
+            const quotes = data.indicators.quote[0].close;
+            const labels = data.timestamp.map(t => new Date(t * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}));
+
+            if (myChart) myChart.destroy();
+
+            const ctx = document.getElementById('mainChart').getContext('2d');
+            const color = quotes[quotes.length-1] >= quotes[0] ? '#198754' : '#dc3545';
+            
+            myChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: quotes,
+                        borderColor: color,
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        fill: true,
+                        backgroundColor: (context) => {
+                            const chart = context.chart;
+                            const {ctx, chartArea} = chart;
+                            if (!chartArea) return null;
+                            const gradient = ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
+                            gradient.addColorStop(0, 'rgba(255,255,255,0)');
+                            gradient.addColorStop(1, color + '22');
+                            return gradient;
+                        },
+                        tension: 0.2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { 
+                        x: { display: false },
+                        y: { grid: { color: '#f1f3f5' } }
+                    }
+                }
+            });
+            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+        }
+
+        // Actions
+        addBtn.onclick = () => {
+            let sym = searchInput.value.trim().toUpperCase();
+            if (sym) {
+                if (!sym.includes('.') && !sym.startsWith('^')) sym += '.NS';
+                if (!watchlist.includes(sym)) {
+                    watchlist.push(sym);
+                    refreshMarketData();
+                }
+                searchInput.value = '';
+            }
+        };
+
+        window.removeStock = (symbol) => {
+            watchlist = watchlist.filter(s => s !== symbol);
+            updateUI();
+        };
+
+    </script>
 </body>
 </html>
