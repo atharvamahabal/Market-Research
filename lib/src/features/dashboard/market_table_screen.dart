@@ -33,7 +33,7 @@ class MarketTableScreen extends ConsumerWidget {
             final response = entry.value;
             final meta = response?.chart.result?.first.meta;
             final price = meta?.regularMarketPrice ?? 0.0;
-            final prevClose = meta?.chartPreviousClose ?? price;
+            final prevClose = meta?.previousClose ?? price;
             final change = price - prevClose;
             final changePercent = prevClose != 0 ? (change / prevClose) * 100 : 0.0;
             final color = change >= 0 ? Colors.green : Colors.red;
